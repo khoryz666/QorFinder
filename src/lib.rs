@@ -1,0 +1,9 @@
+pub mod chunker;
+pub mod cli;
+pub mod embedder;
+pub mod format;
+pub mod indexer;
+pub mod parser;
+pub mod query;
+pub mod store;
+pub mod watcher;
