@@ -39,8 +39,8 @@ $errLog = Join-Path $env:TEMP "qorfinder-bench.err.log"
 Remove-Item $outLog, $errLog -ErrorAction SilentlyContinue
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$argsStr = "index `"$CorpusDir`" --once --collection $Collection --qdrant $QdrantGrpcUrl"
-$proc = Start-Process -FilePath $Binary -ArgumentList $argsStr -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru -NoNewWindow
+$argList = @("index", $CorpusDir, "--once", "--collection", $Collection, "--qdrant", $QdrantGrpcUrl)
+$proc = Start-Process -FilePath $Binary -ArgumentList $argList -RedirectStandardOutput $outLog -RedirectStandardError $errLog -PassThru -NoNewWindow
 $peakBytes = 0
 while (-not $proc.HasExited) {
     try { $ws = (Get-Process -Id $proc.Id).WorkingSet64 } catch { $ws = 0 }
