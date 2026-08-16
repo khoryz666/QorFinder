@@ -41,6 +41,22 @@ Two reproducible corpora, both with preparation scripts:
    - Text: Tanzil Project (free with attribution); fetched via the MIT-licensed `risan/quran-json` mirror
    - `scripts/prepare_tanzil.ps1` → `data/quran/corpus/`
 
+### Reproducible dev environment (Windows + Linux)
+
+Verified identical on both OSes. After `git clone`:
+
+```bash
+docker compose up -d                      # Rust 1.96.0 toolchain + Qdrant v1.19.0 (pinned)
+docker compose exec dev scripts/setup.sh  # build, warm model, corpora, index, eval smoke
+# native alternatives: scripts\setup.ps1 (Windows), scripts/setup.sh (Linux)
+```
+
+Pins: Rust 1.96.0 (`rust-toolchain.toml`), committed `Cargo.lock`, Qdrant v1.19.0
+(image or binary with SHA256 checks), corpus URLs + hashes (`qorfinder corpus beir|quran`),
+model cache volume (`qorfinder warm`). VSCode: one-click `.devcontainer/`.
+CI has a full e2e job (Qdrant + corpus + index + eval) on both Ubuntu and Windows.
+Linux container smoke: 30 SciFact queries → nDCG@10 0.6772, ~31 ms/query.
+
 ### Measured results (Windows, Qdrant 2.x in Docker, CPU-only)
 
 **Retrieval accuracy — SciFact, 300 queries** (`qorfinder eval`):
@@ -76,9 +92,10 @@ Sane and reproducible — a multilingual model trading a bit of English accuracy
 
 ## Future work (suggested order)
 
-1. **Fix `scripts/bench.ps1`** and re-run to get clean index-time and peak-memory numbers.
-2. **Push `feat/mvp-cli`** to origin (backup + CI validation), then PR/merge to `main`,
+1. **Push `feat/mvp-cli`** to origin (backup + CI validation), then PR/merge to `main`,
    tag `v0.1.0` to exercise the release pipeline.
+2. **Fix `scripts/bench.ps1`** (Start-Process quoting/redirection) and re-run to get
+   clean index-time and peak-memory numbers.
 3. **Reduce indexing memory**: batch embeddings per N chunks instead of per file.
 4. **Embedded Qdrant** via `qdrant-client` embedded mode so end users don't need Docker.
 5. **More evaluation**:

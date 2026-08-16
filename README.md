@@ -74,7 +74,30 @@ cargo build --release
 
 ## Development
 
-- Repo lives on a WSL mount but targets Windows — build/test via the Windows shell:
-  `powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo test --lib"`
-- `cargo test --lib` runs the offline unit tests (parser, chunker, formatter); no Qdrant or model needed
-- CI (`.github/workflows/ci.yml`) runs `fmt --check`, `clippy -D warnings`, `cargo test --lib`, `cargo build --release` on Ubuntu and Windows
+Reproducible dev environment — identical on Windows and Linux. After `git clone`, the fastest path needs only Docker (3 commands); or use the native setup script for your OS.
+
+```bash
+# Option A: containerized (Windows, Linux, macOS — needs Docker)
+docker compose up -d                        # pinned Rust 1.96.0 toolchain + Qdrant v1.19.0
+docker compose exec dev scripts/setup.sh    # build + model + corpora + e2e eval smoke
+docker compose exec dev ./target/release/qorfinder query "zakat" --collection scifact
+
+# Option B: native
+.\scripts\setup.ps1        # Windows (MSVC)
+./scripts/setup.sh         # Linux
+```
+
+What is pinned (all in-repo, checked by hashes where possible):
+
+| Piece            | Pin                                    |
+|------------------|----------------------------------------|
+| Rust toolchain   | `rust-toolchain.toml` → 1.96.0 (rustup auto-installs it) |
+| Cargo deps       | `Cargo.lock` (committed)               |
+| Qdrant server    | v1.19.0 (compose image / binary download with SHA256) |
+| Embedding model  | `intfloat/multilingual-e5-small` via `qorfinder warm` (cached at `~/.cache/qorfinder/models`) |
+| SciFact corpus   | BEIR zip URL + md5 `5f7d1de...` (`qorfinder corpus beir scifact`) |
+| Quran corpus     | quran-json at commit `791a3cf` (`qorfinder corpus quran`) |
+
+- VSCode users: "Reopen in Container" (`.devcontainer/`) gives the same env in one click
+- `cargo test --lib` runs the offline unit tests (parsers, chunker, formatter, eval metrics); no Qdrant or model needed
+- CI (`.github/workflows/ci.yml`) runs fmt, clippy, unit tests, release build **and a full e2e job** (Qdrant + corpus + index + eval) on both Ubuntu and Windows

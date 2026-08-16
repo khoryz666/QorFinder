@@ -30,7 +30,16 @@ Hard invariants (silently wrong results if violated):
 
 ## Build, test, lint
 
-App targets Windows; repo is on a WSL mount. Run everything through the Windows side (or CI):
+Reproducible dev env, identical on Windows and Linux (pins: Rust 1.96.0 via `rust-toolchain.toml`, committed `Cargo.lock`, Qdrant v1.19.0, corpus URLs + hashes):
+
+```bash
+# containerized (Docker, any OS)
+docker compose up -d && docker compose exec dev scripts/setup.sh
+
+# or native: scripts\setup.ps1 (Windows) / scripts/setup.sh (Linux)
+```
+
+App targets Windows; repo is on a WSL mount. Quick checks run through the Windows side (or CI):
 
 ```bash
 powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo test --lib"
@@ -39,9 +48,9 @@ powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo fm
 ```
 
 - `cargo test --lib` is the fast offline suite (parser/chunker/formatter/prefixes/eval metrics); it never touches Qdrant or the model
-- End-to-end check needs: Qdrant on localhost (`docker run -d -p 6333:6333 -p 6334:6334 -v qorfinder_data:/qdrant/storage qdrant/qdrant`) plus network for the first model download
-- CI runs fmt, clippy, `cargo test --lib`, `cargo build --release` on Ubuntu + Windows; tags `v*` publish release binaries
-- Corpora/benchmarks: `scripts/prepare_beir.ps1`, `scripts/prepare_tanzil.ps1`, `scripts/bench.ps1` (last one is known-broken, see docs/PROGRESS.md); corpus data lives in gitignored `data/`; results in `docs/PROGRESS.md`
+- End-to-end check needs Qdrant on localhost + network for the first model download; `scripts/setup.*` handles all of it (Qdrant binary, model warm, corpora via `qorfinder corpus`, index + eval smoke)
+- CI runs fmt, clippy, `cargo test --lib`, `cargo build --release` on Ubuntu + Windows, plus a full e2e job (pinned Qdrant binary, SciFact corpus, index, eval); tags `v*` publish release binaries
+- Corpora: `qorfinder corpus beir scifact|nfcorpus` and `qorfinder corpus quran` (pinned URLs, idempotent); data lives in gitignored `data/`; `scripts/bench.ps1` is known-broken, see docs/PROGRESS.md
 
 ## Gotchas
 
