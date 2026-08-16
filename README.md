@@ -48,6 +48,7 @@ cargo build --release
 
 - First run downloads the ONNX embedding model (~120 MB) into `~/.cache/qorfinder/models`; afterwards everything works offline
 - Supported file types: `txt`, `md`, `markdown`, `pdf`, `docx`
+- Evaluation and benchmarking: `eval` subcommand (nDCG/Recall/MRR against qrels) plus scripts in `scripts/`; see `docs/PROGRESS.md` for corpora, measured results, and roadmap
 
 ## Configuration (env vars or flags)
 

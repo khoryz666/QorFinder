@@ -38,9 +38,10 @@ powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo cl
 powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo fmt --all -- --check"
 ```
 
-- `cargo test --lib` is the fast offline suite (parser/chunker/formatter/prefixes); it never touches Qdrant or the model
+- `cargo test --lib` is the fast offline suite (parser/chunker/formatter/prefixes/eval metrics); it never touches Qdrant or the model
 - End-to-end check needs: Qdrant on localhost (`docker run -d -p 6333:6333 -p 6334:6334 -v qorfinder_data:/qdrant/storage qdrant/qdrant`) plus network for the first model download
 - CI runs fmt, clippy, `cargo test --lib`, `cargo build --release` on Ubuntu + Windows; tags `v*` publish release binaries
+- Corpora/benchmarks: `scripts/prepare_beir.ps1`, `scripts/prepare_tanzil.ps1`, `scripts/bench.ps1` (last one is known-broken, see docs/PROGRESS.md); corpus data lives in gitignored `data/`; results in `docs/PROGRESS.md`
 
 ## Gotchas
 
