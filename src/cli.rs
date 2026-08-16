@@ -62,6 +62,25 @@ enum Command {
     },
     /// Show the number of indexed points
     Stats,
+    /// Evaluate retrieval quality against qrels (nDCG@k, Recall@k, MRR@k)
+    Eval {
+        /// Directory with one file per document (doc id = file stem); must already be indexed
+        corpus: PathBuf,
+
+        /// TSV file: query id, query text
+        queries: PathBuf,
+
+        /// Qrels in TREC or BEIR format: query id, [0,] doc id, relevance
+        qrels: PathBuf,
+
+        /// Cut-off for nDCG@k / Recall@k / MRR@k
+        #[arg(short = 'k', long, default_value_t = 10)]
+        top_k: usize,
+
+        /// Evaluate only the first N queries (quick smoke runs)
+        #[arg(long)]
+        limit: Option<usize>,
+    },
 }
 
 pub fn run() -> Result<()> {
@@ -125,6 +144,29 @@ async fn execute(cli: Cli) -> Result<()> {
         Command::Stats => {
             let count = store.count().await?;
             println!("collection '{}': {} point(s)", cli.collection, count);
+        }
+        Command::Eval {
+            corpus,
+            queries,
+            qrels,
+            top_k,
+            limit,
+        } => {
+            let report =
+                crate::eval::run_eval(&store, &embedder, &corpus, &queries, &qrels, top_k, limit)
+                    .await?;
+            println!(
+                "queries evaluated: {} (skipped, no qrels: {})",
+                report.evaluated, report.skipped_no_qrels
+            );
+            println!("nDCG@{}:  {:.4}", report.k, report.ndcg);
+            println!("Recall@{}: {:.4}", report.k, report.recall);
+            println!("MRR@{}:    {:.4}", report.k, report.mrr);
+            println!(
+                "time: {:.2} s ({:.1} ms/query)",
+                report.total_seconds,
+                report.total_seconds * 1000.0 / report.evaluated.max(1) as f64
+            );
         }
     }
     Ok(())
