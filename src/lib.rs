@@ -1,5 +1,6 @@
 pub mod chunker;
 pub mod cli;
+pub mod corpus;
 pub mod embedder;
 pub mod eval;
 pub mod format;

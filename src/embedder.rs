@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
@@ -22,6 +22,7 @@ pub fn query_text(query: &str) -> String {
 
 pub struct Embedder {
     model: TextEmbedding,
+    cache_dir: PathBuf,
 }
 
 impl Embedder {
@@ -33,16 +34,20 @@ impl Embedder {
         // stable per-user location instead.
         let cache_dir = cache_dir.unwrap_or_else(default_cache_dir);
         let options = InitOptions::new(EmbeddingModel::MultilingualE5Small)
-            .with_cache_dir(cache_dir)
+            .with_cache_dir(cache_dir.clone())
             .with_show_download_progress(false);
         let model = TextEmbedding::try_new(options).context(
             "failed to initialize embedding model (first run needs network to download it)",
         )?;
-        Ok(Self { model })
+        Ok(Self { model, cache_dir })
     }
 
     pub fn dims(&self) -> usize {
         MODEL_DIMS
+    }
+
+    pub fn cache_dir(&self) -> &Path {
+        &self.cache_dir
     }
 
     pub fn embed_passages(&self, chunks: &[String]) -> Result<Vec<Vec<f32>>> {

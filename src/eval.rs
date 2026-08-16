@@ -177,7 +177,9 @@ pub fn build_doc_map(corpus: &Path) -> HashMap<String, String> {
 }
 
 /// Run every query against the store and score the results against qrels.
-/// The corpus must already be indexed.
+/// The corpus must already be indexed. Queries without qrels are skipped
+/// (BEIR ships train + test queries together); `limit` caps the number of
+/// *judged* queries that are actually embedded and searched.
 pub async fn run_eval(
     store: &Store,
     embedder: &Embedder,
@@ -190,10 +192,6 @@ pub async fn run_eval(
     let queries = parse_queries(queries_path)?;
     let qrels = parse_qrels(qrels_path)?;
     let doc_map = build_doc_map(corpus);
-    let queries: Vec<_> = queries
-        .into_iter()
-        .take(limit.unwrap_or(usize::MAX))
-        .collect();
 
     let mut sum_ndcg = 0.0;
     let mut sum_recall = 0.0;
@@ -203,6 +201,13 @@ pub async fn run_eval(
     let started = Instant::now();
 
     for (qid, query) in &queries {
+        if limit.is_some_and(|l| evaluated >= l) {
+            break;
+        }
+        let Some(relevant) = qrels.get(qid) else {
+            skipped_no_qrels += 1;
+            continue;
+        };
         let vector = embedder.embed_query(query)?;
         let hits = store.search(vector, k as u64).await?;
         let ranked: Vec<String> = dedupe(
@@ -210,10 +215,6 @@ pub async fn run_eval(
                 .filter_map(|h| doc_map.get(&h.file_path).cloned())
                 .collect(),
         );
-        let Some(relevant) = qrels.get(qid) else {
-            skipped_no_qrels += 1;
-            continue;
-        };
         sum_ndcg += ndcg_at_k(&ranked, relevant, k);
         sum_recall += recall_at_k(&ranked, relevant, k);
         sum_mrr += reciprocal_rank(&ranked, relevant, k);

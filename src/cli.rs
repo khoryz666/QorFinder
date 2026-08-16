@@ -81,6 +81,32 @@ enum Command {
         #[arg(long)]
         limit: Option<usize>,
     },
+    /// Download and prepare a benchmark corpus (no Qdrant needed)
+    Corpus {
+        #[command(subcommand)]
+        corpus: CorpusKind,
+    },
+    /// Download the embedding model and print its info (no Qdrant needed)
+    Warm,
+}
+
+#[derive(Subcommand)]
+enum CorpusKind {
+    /// BEIR retrieval benchmark (scifact or nfcorpus)
+    Beir {
+        /// Dataset name
+        #[arg(default_value = "scifact")]
+        dataset: String,
+        /// Output directory (default: data)
+        #[arg(short, long, default_value = "data")]
+        out: PathBuf,
+    },
+    /// Quran corpus: Tanzil Uthmani text + English translation, one file per ayah
+    Quran {
+        /// Output directory (default: data)
+        #[arg(short, long, default_value = "data")]
+        out: PathBuf,
+    },
 }
 
 pub fn run() -> Result<()> {
@@ -94,6 +120,25 @@ pub fn run() -> Result<()> {
 }
 
 async fn execute(cli: Cli) -> Result<()> {
+    match &cli.command {
+        Command::Warm => return warm_model(cli.model_cache.clone()),
+        Command::Corpus { corpus } => {
+            return match corpus {
+                CorpusKind::Beir { dataset, out } => {
+                    let dir = crate::corpus::prepare_beir(dataset, out)?;
+                    println!("corpus ready: {}", dir.display());
+                    Ok(())
+                }
+                CorpusKind::Quran { out } => {
+                    let dir = crate::corpus::prepare_quran(out)?;
+                    println!("corpus ready: {}", dir.display());
+                    Ok(())
+                }
+            };
+        }
+        _ => {}
+    }
+
     let embedder =
         Embedder::try_new(cli.model_cache.clone()).context("failed to load embedding model")?;
     let store = Store::connect(&cli.qdrant, &cli.collection, embedder.dims())
@@ -168,6 +213,17 @@ async fn execute(cli: Cli) -> Result<()> {
                 report.total_seconds * 1000.0 / report.evaluated.max(1) as f64
             );
         }
+        Command::Corpus { .. } | Command::Warm => unreachable!("handled above"),
     }
+    Ok(())
+}
+
+fn warm_model(model_cache: Option<PathBuf>) -> Result<()> {
+    let embedder = Embedder::try_new(model_cache).context("failed to load embedding model")?;
+    println!(
+        "model ready: intfloat/multilingual-e5-small, {} dims",
+        embedder.dims()
+    );
+    println!("cache: {}", embedder.cache_dir().display());
     Ok(())
 }
