@@ -2,33 +2,6 @@
 
 Local-first semantic search CLI. Two jobs: index a user-chosen directory into a local vector DB (Qdrant), and answer queries as top-k matching chunks with file references.
 
-FYP1 report: [here](https://docs.google.com/document/d/1CtL0q7dBs9l-KT-bIHI4P1I4dvECrhdV/edit?usp=sharing&ouid=100227885797542500700&rtpof=true&sd=true)
-
-## MVP architecture
-
-```mermaid
-flowchart TB
-    subgraph INDEX["Index path (initial scan + file changes)"]
-        DIR[Target Directory] --> W[Watchdog<br/>debounced]
-        W --> P[Parser<br/>txt / pdf / docx]
-        P --> C[Text Chunker<br/>fixed window + overlap]
-        C --> E[Embedder<br/>fastembed ONNX, offline]
-        E --> Q[(Qdrant<br/>local, cosine, 384-dim)]
-    end
-
-    subgraph QUERY["Query path"]
-        U[User query] --> E2[Embedder<br/>same model]
-        E2 --> S[Top-k search]
-        Q --> S
-        S --> F[Formatter<br/>snippet + file path]
-        F --> R[Results to stdout]
-    end
-```
-
-- Everything runs locally: no cloud APIs, no API keys
-- Same embedding model on both paths (`intfloat/multilingual-e5-small`, 384 dims) — changing it means re-indexing
-- Each Qdrant point stores: file path, chunk index, raw text
-
 ## Quick start
 
 ```powershell
@@ -48,7 +21,6 @@ cargo build --release
 
 - First run downloads the ONNX embedding model (~120 MB) into `~/.cache/qorfinder/models`; afterwards everything works offline
 - Supported file types: `txt`, `md`, `markdown`, `pdf`, `docx`
-- Evaluation and benchmarking: `eval` subcommand (nDCG/Recall/MRR against qrels) plus scripts in `scripts/`; see `docs/PROGRESS.md` for corpora, measured results, and roadmap
 
 ## Configuration (env vars or flags)
 
@@ -72,32 +44,8 @@ cargo build --release
 | `walkdir`        | directory traversal                        |
 | `uuid`           | deterministic point IDs                    |
 
-## Development
+## Next Steps
 
-Reproducible dev environment — identical on Windows and Linux. After `git clone`, the fastest path needs only Docker (3 commands); or use the native setup script for your OS.
-
-```bash
-# Option A: containerized (Windows, Linux, macOS — needs Docker)
-docker compose up -d                        # pinned Rust 1.96.0 toolchain + Qdrant v1.19.0
-docker compose exec dev scripts/setup.sh    # build + model + corpora + e2e eval smoke
-docker compose exec dev ./target/release/qorfinder query "zakat" --collection scifact
-
-# Option B: native
-.\scripts\setup.ps1        # Windows (MSVC)
-./scripts/setup.sh         # Linux
-```
-
-What is pinned (all in-repo, checked by hashes where possible):
-
-| Piece            | Pin                                    |
-|------------------|----------------------------------------|
-| Rust toolchain   | `rust-toolchain.toml` → 1.96.0 (rustup auto-installs it) |
-| Cargo deps       | `Cargo.lock` (committed)               |
-| Qdrant server    | v1.19.0 (compose image / binary download with SHA256) |
-| Embedding model  | `intfloat/multilingual-e5-small` via `qorfinder warm` (cached at `~/.cache/qorfinder/models`) |
-| SciFact corpus   | BEIR zip URL + md5 `5f7d1de...` (`qorfinder corpus beir scifact`) |
-| Quran corpus     | quran-json at commit `791a3cf` (`qorfinder corpus quran`) |
-
-- VSCode users: "Reopen in Container" (`.devcontainer/`) gives the same env in one click
-- `cargo test --lib` runs the offline unit tests (parsers, chunker, formatter, eval metrics); no Qdrant or model needed
-- CI (`.github/workflows/ci.yml`) runs fmt, clippy, unit tests, release build **and a full e2e job** (Qdrant + corpus + index + eval) on both Ubuntu and Windows
+- Want to develop or run tests? See [CONTRIBUTING.md](CONTRIBUTING.md)
+- Curious about internals? See [design/ARCHITECTURE.md](design/ARCHITECTURE.md)
+- Interested in benchmarks? See [design/EVALUATION.md](design/EVALUATION.md)
