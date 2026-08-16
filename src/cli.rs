@@ -50,6 +50,10 @@ enum Command {
         /// Index once and exit (skip watching)
         #[arg(long)]
         once: bool,
+
+        /// Re-index every file even if its stored fingerprint is unchanged
+        #[arg(long)]
+        force: bool,
     },
     /// Search the index for the top-k matching chunks
     Query {
@@ -156,6 +160,7 @@ async fn execute(cli: Cli) -> Result<()> {
             chunk_size,
             chunk_overlap,
             once,
+            force,
         } => {
             if chunk_size == 0 {
                 bail!("--chunk-size must be positive");
@@ -166,10 +171,12 @@ async fn execute(cli: Cli) -> Result<()> {
             let dir = dunce::canonicalize(&dir)
                 .with_context(|| format!("target directory not found: {}", dir.display()))?;
             let indexer = Arc::new(Indexer::new(store, embedder, chunk_size, chunk_overlap));
-            let stats = indexer.index_dir(&dir).await?;
+            let stats = indexer.index_dir(&dir, force).await?;
             tracing::info!(
-                "indexing done: {} file(s) indexed, {} skipped, {} failed",
+                "indexing done: {} indexed, {} unchanged, {} removed, {} skipped, {} failed",
                 stats.indexed,
+                stats.unchanged,
+                stats.removed,
                 stats.skipped,
                 stats.failed
             );

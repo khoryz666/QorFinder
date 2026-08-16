@@ -2756,6 +2756,7 @@ dependencies = [
  "md-5",
  "notify",
  "qdrant-client",
+ "rayon",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
