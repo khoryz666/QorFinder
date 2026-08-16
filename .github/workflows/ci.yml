@@ -35,9 +35,6 @@ jobs:
       - name: Unit tests
         run: cargo test --lib
 
-      - name: Build release binary
-        run: cargo build --release
-
   e2e:
     name: e2e (${{ matrix.os }})
     needs: test
