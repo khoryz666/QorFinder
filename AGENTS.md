@@ -7,18 +7,7 @@ QorFinder is a local-first semantic search engine, delivered as a CLI utility. I
 1. Indexes the files in a user-chosen "Target Directory" into a local vector DB
 2. Converts each query into a sentence embedding and returns the top-k matching chunks with file references
 
-## Project status
-
-MVP is implemented on branch `feat/mvp-cli` (Rust CLI). Verify with `cargo test --lib` (offline, 17 unit tests).
-
-## Architecture (pre-decided — don't reinvent)
-
-Slim stack, fully local, no external APIs or keys:
-
-- **App shell**: plain Rust CLI (arg parsing via `clap`), no GUI/frontend; targets Windows
-- **Index path**: Watchdog (`notify`, debounced 2s) -> Parser (txt/md built-in, PDF via `lopdf`, DOCX via `docx-rs`) -> Text Chunker (fixed-size window + overlap, default 512/64 chars) -> Embedder (`fastembed`, ONNX, offline) -> Qdrant (cosine distance)
-- **Query path**: same Embedder -> Qdrant top-k -> Formatter (snippet + file path) -> results printed to stdout
-- **Qdrant**: must be running before index/query; dev via Docker (`qdrant/qdrant`), embedded mode via `qdrant-client` for the packaged CLI
+## Architecture (pre-decided)
 
 Hard invariants (silently wrong results if violated):
 
@@ -27,30 +16,6 @@ Hard invariants (silently wrong results if violated):
 - e5 models require `query: ` / `passage: ` prompt prefixes on the two sides (see `src/embedder.rs`)
 - Qdrant payload per point must carry file path, chunk index, and raw text — the Formatter needs them to display results without re-reading files
 - Points use deterministic UUIDv5 IDs from `path:chunk_index` so re-indexing is idempotent
-
-## Build, test, lint
-
-Reproducible dev env, identical on Windows and Linux (pins: Rust 1.96.0 via `rust-toolchain.toml`, committed `Cargo.lock`, Qdrant v1.19.0, corpus URLs + hashes):
-
-```bash
-# containerized (Docker, any OS)
-docker compose up -d && docker compose exec dev scripts/setup.sh
-
-# or native: scripts\setup.ps1 (Windows) / scripts/setup.sh (Linux)
-```
-
-App targets Windows; repo is on a WSL mount. Quick checks run through the Windows side (or CI):
-
-```bash
-powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo test --lib"
-powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo clippy --all-targets -- -D warnings"
-powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo fmt --all -- --check"
-```
-
-- `cargo test --lib` is the fast offline suite (parser/chunker/formatter/prefixes/eval metrics); it never touches Qdrant or the model
-- End-to-end check needs Qdrant on localhost + network for the first model download; `scripts/setup.*` handles all of it (Qdrant binary, model warm, corpora via `qorfinder corpus`, index + eval smoke)
-- CI runs fmt, clippy, `cargo test --lib`, `cargo build --release` on Ubuntu + Windows, plus a full e2e job (pinned Qdrant binary, SciFact corpus, index, eval); tags `v*` publish release binaries
-- Corpora: `qorfinder corpus beir scifact|nfcorpus` and `qorfinder corpus quran` (pinned URLs, idempotent); data lives in gitignored `data/`; `scripts/bench.ps1` is known-broken, see docs/PROGRESS.md
 
 ## Gotchas
 
@@ -61,6 +26,8 @@ powershell.exe -Command "Set-Location C:\Users\khory\Desktop\QorFinder; cargo fm
 
 ## Sources of truth
 
-- README (mermaid diagram, quick start) is the MVP-level view; `ref/high-level-diagram.drawio` is the original GUI design (superseded: MVP is a CLI, not Tauri; editable in diagrams.net, text is XML-escaped HTML)
-- README links to the FYP1 report (Google Doc) — primary requirements doc; read it (user can grant access) before implementing features
-- `ref/Proposal PRE.pdf`, `ref/IIPSPW_T7_23ACB05662.pdf` — proposal and a related academic paper
+- [README.md](README.md): Quick start and CLI usage.
+- [TARGETS.md](TARGETS.md): Clear objectives and scope boundaries. Do not propose features outside this scope.
+- [design/ARCHITECTURE.md](design/ARCHITECTURE.md): Deep dive into system components and data flow.
+- [design/EVALUATION.md](design/EVALUATION.md): Datasets and instructions for performance benchmarking.
+- [CONTRIBUTING.md](CONTRIBUTING.md): Details on reproducible dev environments and testing.
