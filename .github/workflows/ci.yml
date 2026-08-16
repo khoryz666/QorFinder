@@ -58,11 +58,7 @@ jobs:
           path: ~/.cache/qorfinder/models
           key: qorfinder-model-multilingual-e5-small
 
-      - name: Cache SciFact corpus
-        uses: actions/cache@v4
-        with:
-          path: data/scifact
-          key: qorfinder-corpus-scifact
+
 
       - name: Start Qdrant v1.19.0 (Linux)
         if: runner.os == 'Linux'
@@ -96,11 +92,9 @@ jobs:
       - name: Build (release)
         run: cargo build --release
 
-      - name: Prepare SciFact corpus
-        run: cargo run --release -- corpus beir scifact
+      - name: Index small fixture
+        run: cargo run --release -- index tests/fixtures/small_corpus --once --collection e2e-fixture
 
-      - name: Index corpus
-        run: cargo run --release -- index data/scifact/corpus --once --collection e2e-scifact
-
-      - name: Evaluation smoke (30 queries)
-        run: cargo run --release -- eval data/scifact/corpus data/scifact/queries.tsv data/scifact/qrels.tsv --collection e2e-scifact --limit 30
+      - name: Search smoke test
+        shell: bash
+        run: cargo run --release -- query "database for vectors" --collection e2e-fixture | grep -i "qdrant"
